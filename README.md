@@ -4,7 +4,7 @@
 
 1 Pacman vs 2 Ghosts 구도의 11×11 격자 환경에서 **MAPPO(Multi-Agent Proximal Policy Optimization)** 알고리즘을 이용해 부분 관측 기반 추격·도주 행동을 학습하는 강화학습(Reinforcement Learning) 프로젝트이다.
 
-Ghost는 Pacman을 시야(ray-based radar) 안에 포착하면 보상을 받고, Pacman은 Ghost에게 들키지 않도록 도주 전략을 학습합니다. Actor는 에이전트별 로컬 관측만 사용하고 Critic은 전역 상태를 사용하는 **Centralized Training, Decentralized Execution(CTDE)** 구조를 따른다.
+Ghost는 Pacman을 시야(ray-based radar) 안에 포착하면 보상을 받고, Pacman은 Ghost에게 들키지 않도록 도주 전략을 학습한다. Actor는 에이전트별 로컬 관측만 사용하고 Critic은 전역 상태를 사용하는 **Centralized Training, Decentralized Execution(CTDE)** 구조를 따른다.
 
 총 4단계(빈 맵 → 벽 추가 → 보상 구조 개선 → 시야 밸런싱)에 걸쳐 진행되었으며, 각 단계의 체크포인트와 학습 노트북이 디렉터리별로 보존되어 있음.
 
@@ -178,7 +178,6 @@ Ghost의 ray 특징: `[wall_dist, pacman_dist, pacman_dx, pacman_dy, pacman_mask
 ### Manhattan 거리 기반 보상의 오류
 
 초기에는 Manhattan distance 기반 보상을 사용하였으나, 벽 뒤에서도 reward가 발생하는 문제가 있었고 이로 인해 학습 noise가 발생하였다.
-
 이를 해결하기 위해 거리 기반 보상을 제거하고 시야 기반 보상으로 변경하였다.
 
 ### 시야 기반 보상 구조
