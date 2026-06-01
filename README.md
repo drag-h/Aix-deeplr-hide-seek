@@ -2,11 +2,11 @@
 
 ## 프로젝트 소개
 
-1 Pacman vs 2 Ghosts 구도의 11×11 격자 환경에서 **MAPPO(Multi-Agent Proximal Policy Optimization)** 알고리즘을 이용해 부분 관측 기반 추격·도주 행동을 학습하는 강화학습 프로젝트입니다.
+1 Pacman vs 2 Ghosts 구도의 11×11 격자 환경에서 **MAPPO(Multi-Agent Proximal Policy Optimization)** 알고리즘을 이용해 부분 관측 기반 추격·도주 행동을 학습하는 강화학습(Reinforcement Learning) 프로젝트이다.
 
-Ghost는 Pacman을 시야(ray-based radar) 안에 포착하면 보상을 받고, Pacman은 Ghost에게 들키지 않도록 도주 전략을 학습합니다. Actor는 에이전트별 로컬 관측만 사용하고 Critic은 전역 상태를 사용하는 **Centralized Training, Decentralized Execution(CTDE)** 구조를 따릅니다.
+Ghost는 Pacman을 시야(ray-based radar) 안에 포착하면 보상을 받고, Pacman은 Ghost에게 들키지 않도록 도주 전략을 학습합니다. Actor는 에이전트별 로컬 관측만 사용하고 Critic은 전역 상태를 사용하는 **Centralized Training, Decentralized Execution(CTDE)** 구조를 따른다.
 
-실험은 총 4단계(빈 맵 → 벽 추가 → 보상 구조 개선 → 시야 밸런싱)에 걸쳐 진행되었으며, 각 단계의 체크포인트와 학습 노트북이 디렉터리별로 보존되어 있습니다.
+총 4단계(빈 맵 → 벽 추가 → 보상 구조 개선 → 시야 밸런싱)에 걸쳐 진행되었으며, 각 단계의 체크포인트와 학습 노트북이 디렉터리별로 보존되어 있음.
 
 ---
 
@@ -49,7 +49,7 @@ Ghost는 Pacman을 시야(ray-based radar) 안에 포착하면 보상을 받고,
 |---|---|
 | 딥러닝 프레임워크 | PyTorch |
 | 수치 연산 | NumPy |
-| 실행 환경 | Google Colab (GPU 런타임 권장) |
+| 실행 환경 | Google Colab |
 | 체크포인트 저장 | Google Drive |
 | 인터페이스 | Jupyter Notebook |
 
@@ -59,12 +59,12 @@ Ghost는 Pacman을 시야(ray-based radar) 안에 포착하면 보상을 받고,
 
 ```
 Aix-deep/
-├── 0.open wall 1speed/          # 0단계: 빈 맵, Pacman 속도 1
+├── 0.open wall 1speed/          # 0단계: 빈 맵, Pacman 속도 1 로 설정
 │   ├── pacmannew.ipynb          # 학습 노트북
 │   ├── pacmannewplay.ipynb      # 추론/시각화 노트북
 │   └── checkpoint_1speed_just_chase.pt
 │
-├── 1.wall 2speed/               # 1단계: 벽 추가, Pacman 속도 2
+├── 1.wall 2speed/               # 1단계: 벽 추가 맟 Pacman 속도 증가 (1 -> 2)
 │   ├── pacmannew.ipynb
 │   ├── pacmannewplay.ipynb
 │   ├── checkpoint_2speed_just_chase.pt
@@ -85,20 +85,13 @@ Aix-deep/
 └── README.md
 ```
 
-> 각 디렉터리는 독립적인 실험 단계이며, 이전 단계의 체크포인트를 `resume_path`에 지정하여 이어서 학습할 수 있습니다.
+> 각 디렉터리는 독립적인 실험 단계이고, 전 단계의 체크포인트를 `resume_path`에 지정하여 이어서 학습 가능함.
 
 ---
 
 ## 설치 방법
 
-이 프로젝트는 **Google Colab** 에서 실행하는 것을 전제로 합니다.
-
-**필요 환경**
-- Google 계정 (Google Drive 마운트용)
-- Google Colab (GPU 런타임 권장)
-- PyTorch, NumPy (Colab 기본 설치되어 있음)
-
-로컬에서 실행하려면 아래 명령으로 의존성을 설치하세요.
+로컬에서 실행하려면 아래 명령어로 설치하기
 
 ```bash
 pip install torch numpy
@@ -108,7 +101,7 @@ pip install torch numpy
 
 ## 환경 변수 설정
 
-별도의 `.env` 파일은 사용하지 않습니다. 체크포인트 저장 경로는 노트북 내 상수로 직접 지정합니다.
+별도의 `.env` 파일은 사용하지 않음. 체크포인트 저장 경로는 노트북 내 상수로 직접 지정한다.
 
 ```python
 # pacmannew.ipynb 내 학습 설정
@@ -125,7 +118,7 @@ CHECKPOINT_PATH = "/content/drive/MyDrive/tag_mappo_checkpoints/checkpoint_updat
 
 ### 학습
 
-`pacmannew.ipynb`를 Colab에서 열고 아래 셀을 실행합니다.
+`pacmannew.ipynb`를 Colab에서 열고 아래 셀을 실행한다.
 
 ```python
 env0, pacman_net, ghost_net, stats = train_marl(
@@ -147,7 +140,7 @@ env0, pacman_net, ghost_net, stats = train_marl(
 
 ### 추론 및 시각화
 
-`pacmannewplay.ipynb`(또는 `pacmannewplay-2.ipynb`)를 열고 실행합니다.
+`pacmannewplay.ipynb`(또는 `pacmannewplay-2.ipynb`)를 열고 실행한다.
 
 ```python
 run_inference(
@@ -182,7 +175,13 @@ run_inference(
 
 Ghost의 ray 특징: `[wall_dist, pacman_dist, pacman_dx, pacman_dy, pacman_mask, ally_dist, ally_dx, ally_dy, ally_mask]`
 
-### 보상
+### Manhattan 거리 기반 보상의 오류
+
+초기에는 Manhattan distance 기반 보상을 사용하였으나, 벽 뒤에서도 reward가 발생하는 문제가 있었고 이로 인해 학습 noise가 발생하였다.
+
+이를 해결하기 위해 거리 기반 보상을 제거하고 시야 기반 보상으로 변경하였다.
+
+### 시야 기반 보상 구조
 
 ```
 Ghost i가 Pacman을 시야 내에서 발견한 경우:
@@ -200,7 +199,7 @@ Actor:  Linear(obs_dim → 128) → ReLU → Linear → ReLU → LSTM(128) → p
 Critic: Linear(obs_dim → 128) → ReLU → Linear → ReLU → LSTM(128) → value_head(1)
 ```
 
-Pacman과 Ghost 각각 독립적인 네트워크를 가집니다.
+Pacman과 Ghost 각각 독립적인 네트워크를 가진다.
 
 ### 학습 루프
 
@@ -244,7 +243,7 @@ ppo_update()
 
 ## 테스트 및 검증
 
-별도의 테스트 프레임워크는 구성되어 있지 않습니다. 학습 후 다음 방법으로 결과를 검증할 수 있습니다.
+별도의 테스트 프레임워크는 구성되어 있지 않다. 학습 후 다음 방법으로 결과를 검증할 수 있다.
 
 ```python
 # 학습 노트북에서 evaluate() 호출
@@ -253,16 +252,8 @@ evaluate(env0, pacman_net, ghost_net, episodes=3, render=True, device=device)
 
 ---
 
-## 배포 방법
 
-별도의 서버 배포는 없습니다. Google Colab 노트북 단위로 실행 및 공유합니다.
-
-- 체크포인트는 Google Drive에 저장되어 팀원 간 공유 가능
-- 노트북 파일(`.ipynb`)을 GitHub 또는 Google Drive로 배포
-
----
-
-## 실험 단계 요약
+## 단계 별 요약
 
 | 단계 | 맵 | Pacman 속도 | Ghost 속도 | 보상 방식 | 주요 관찰 |
 |---|---|---|---|---|---|
@@ -273,10 +264,8 @@ evaluate(env0, pacman_net, ghost_net, episodes=3, render=True, device=device)
 
 ---
 
-## 현재 한계 및 TODO
+## 한계 
 
-- 학습 및 추론이 Google Colab 환경에 의존함 — 로컬 실행 스크립트 분리 필요
 - 시각화가 텍스트 렌더링 수준 — Matplotlib/pygame 기반 GUI 시각화 미구현
 - Ghost 수를 2개로 고정 — 가변 에이전트 수 지원 미구현
 - 학습 곡선(reward 그래프) 자동 저장 미구현
-- `checkpoint_update_450.pt.textClipping` 파일: 체크포인트 오류로 인한 잔여 파일로 추정 (확인 필요)
