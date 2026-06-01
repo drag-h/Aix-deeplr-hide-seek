@@ -1,151 +1,282 @@
-Multi-Agent Pacman (MAPPO 기반)
+# Multi-Agent Pacman — MAPPO 기반 Hide & Seek
 
-프로젝트 개요
+## 프로젝트 소개
 
-본 프로젝트는 1 Pacman vs 2 Ghosts 환경에서 MAPPO (Multi-Agent PPO)를 활용하여 부분 관측 환경에서의 추격 및 협력 행동을 학습하는 것을 목표로 한다.
+1 Pacman vs 2 Ghosts 구도의 11×11 격자 환경에서 **MAPPO(Multi-Agent Proximal Policy Optimization)** 알고리즘을 이용해 부분 관측 기반 추격·도주 행동을 학습하는 강화학습 프로젝트입니다.
 
-환경 설정
+Ghost는 Pacman을 시야(ray-based radar) 안에 포착하면 보상을 받고, Pacman은 Ghost에게 들키지 않도록 도주 전략을 학습합니다. Actor는 에이전트별 로컬 관측만 사용하고 Critic은 전역 상태를 사용하는 **Centralized Training, Decentralized Execution(CTDE)** 구조를 따릅니다.
 
-에이전트 구성
+실험은 총 4단계(빈 맵 → 벽 추가 → 보상 구조 개선 → 시야 밸런싱)에 걸쳐 진행되었으며, 각 단계의 체크포인트와 학습 노트북이 디렉터리별로 보존되어 있습니다.
 
-Pacman 1개와 Ghost 2개로 구성된다.
+---
 
-관측
+## 핵심 기능
 
-부분 관측 환경이며 ray 기반 radar를 사용한다.
-Actor는 각 에이전트의 로컬 관측만 사용하고, Critic은 전역 상태를 사용하는 MAPPO 구조를 따른다.
+| 기능 | 설명 |
+|---|---|
+| 커스텀 MARL 환경 | 11×11 격자, 3종 맵(empty / medium / hard), 충돌 허용 |
+| Ray 기반 부분 관측 | 8방향 radar, 에이전트마다 독립 시야 범위 설정 |
+| MAPPO 학습 | Recurrent Actor-Critic (LSTM) + GAE + PPO clip |
+| 병렬 환경 롤아웃 | 다수의 환경을 동시에 수집하여 학습 효율 향상 |
+| 체크포인트 저장·재개 | 업데이트 번호 단위로 저장, 이어서 학습 가능 |
+| 텍스트 렌더링 추론 | 저장된 체크포인트를 로드하여 에피소드를 시각화 |
 
-맵
+---
 
-empty, medium, hard 세 가지 맵을 지원한다.
+## 전체 서비스 흐름
 
-시야 거리
+```
+1. 환경 초기화
+   └── 맵 선택(empty / medium / hard), 시야 범위 및 시드 설정
 
-Pacman과 Ghost의 시야는 각각 독립적인 하이퍼파라미터로 설정된다.
+2. 학습 (pacmannew.ipynb)
+   ├── 병렬 환경에서 Rollout 수집 (horizon=128 steps × N envs)
+   ├── GAE로 Advantage 계산
+   ├── PPO 업데이트 (Pacman 네트워크 / Ghost 네트워크 각각)
+   └── 지정 주기마다 Google Drive에 체크포인트 저장
 
-이동 속도
+3. 추론 (pacmannewplay.ipynb)
+   ├── 체크포인트 로드
+   ├── 에피소드 스텝 실행 (stochastic 또는 greedy)
+   └── 매 스텝 텍스트 렌더링으로 게임 진행 시각화
+```
 
-Pacman과 Ghost 모두 속도는 1을 기본으로 사용한다.
+---
 
-⸻
+## 기술 스택
 
-보상 설계
+| 분류 | 라이브러리 / 플랫폼 |
+|---|---|
+| 딥러닝 프레임워크 | PyTorch |
+| 수치 연산 | NumPy |
+| 실행 환경 | Google Colab (GPU 런타임 권장) |
+| 체크포인트 저장 | Google Drive |
+| 인터페이스 | Jupyter Notebook |
 
-초기에는 Manhattan distance 기반 보상을 사용하였으나, 벽 뒤에서도 reward가 발생하는 문제가 있었고 이로 인해 학습 noise가 발생하였다.
+---
 
-이를 해결하기 위해 거리 기반 보상을 제거하고 시야 기반 보상으로 변경하였다.
+## 프로젝트 구조
 
-Ghost의 시야에 Pacman이 보이면 해당 Ghost는 +1, Pacman은 -1의 보상을 받는다.
-보이지 않는 경우에는 모든 에이전트가 0의 보상을 받는다.
+```
+Aix-deep/
+├── 0.open wall 1speed/          # 0단계: 빈 맵, Pacman 속도 1
+│   ├── pacmannew.ipynb          # 학습 노트북
+│   ├── pacmannewplay.ipynb      # 추론/시각화 노트북
+│   └── checkpoint_1speed_just_chase.pt
+│
+├── 1.wall 2speed/               # 1단계: 벽 추가, Pacman 속도 2
+│   ├── pacmannew.ipynb
+│   ├── pacmannewplay.ipynb
+│   ├── checkpoint_2speed_just_chase.pt
+│   └── checkpoint_2speed_final.pt
+│
+├── 2./                          # 2단계: 시야 기반 보상, MAPPO 적용
+│   ├── pacmannew.ipynb
+│   ├── pacmannewplay.ipynb
+│   ├── checkpoint_1speed_just_chase.pt
+│   ├── checkpoint_update_900.pt
+│   └── checkpoint_update_1250_seed451.pt
+│
+├── 3/                           # 3단계: 시야 밸런싱 (Pacman 10 / Ghost 2→3)
+│   ├── pacmannew.ipynb          # 최신 학습 코드
+│   ├── pacmannewplay-2.ipynb    # 최신 추론 코드
+│   └── checkpoint_update_1000_empty_final.pt
+│
+└── README.md
+```
 
-⸻
+> 각 디렉터리는 독립적인 실험 단계이며, 이전 단계의 체크포인트를 `resume_path`에 지정하여 이어서 학습할 수 있습니다.
 
-실험 단계별 변화
+---
 
-0단계: 기본 환경 (Empty 맵, Pacman 속도 1)
+## 설치 방법
 
-설정
-빈 맵에서 Pacman 속도 1로 시작하였다.
+이 프로젝트는 **Google Colab** 에서 실행하는 것을 전제로 합니다.
 
-관찰
-step 300 이전까지는 대부분 한쪽 구석에 머무르는 현상이 나타났다.
-step 340 부근부터 추격 및 도주 행동이 나타나기 시작하였다.
+**필요 환경**
+- Google 계정 (Google Drive 마운트용)
+- Google Colab (GPU 런타임 권장)
+- PyTorch, NumPy (Colab 기본 설치되어 있음)
 
-문제
-초기 학습 단계에서 exploration이 부족하여 행동이 정체되는 문제가 있었다.
+로컬에서 실행하려면 아래 명령으로 의존성을 설치하세요.
 
-개선 방향
-보상 구조와 환경 복잡도를 조정할 필요가 있었다.
+```bash
+pip install torch numpy
+```
 
-⸻
+---
 
-1단계: 벽 추가 및 속도 변화
+## 환경 변수 설정
 
-설정
-맵에 벽을 추가하고 Pacman 속도를 2로 증가시켰다.
+별도의 `.env` 파일은 사용하지 않습니다. 체크포인트 저장 경로는 노트북 내 상수로 직접 지정합니다.
 
-관찰
-step 290 부근에서 추격 행동이 나타났으나, step 800 이후에는 벽에 붙어서 움직이지 않는 현상이 발생하였다.
+```python
+# pacmannew.ipynb 내 학습 설정
+save_dir = "/content/drive/MyDrive/tag_mappo_checkpoints"
+resume_path = "/content/drive/MyDrive/tag_mappo_checkpoints/checkpoint_update_1000.pt"  # 없으면 None
 
-문제
-벽 근처에서도 Manhattan distance 기반 reward가 발생하여 비정상적인 행동을 유도하였다.
-벽을 사이에 두고도 reward를 주고받으며 학습 noise가 발생하였다.
+# pacmannewplay.ipynb 내 추론 설정
+CHECKPOINT_PATH = "/content/drive/MyDrive/tag_mappo_checkpoints/checkpoint_update_1000.pt"
+```
 
-개선
-거리 기반 보상의 한계를 확인하고 이를 제거하는 방향으로 설계를 변경하였다.
+---
 
-⸻
+## 실행 방법
 
-2단계: 보상 구조 변경 및 MAPPO 적용
+### 학습
 
-설정
-거리 기반 보상을 제거하고 시야 기반 보상으로 변경하였다.
-MAPPO를 적용하여 actor는 로컬 관측, critic은 전역 상태를 사용하도록 구성하였다.
-시야 거리와 맵을 하이퍼파라미터로 분리하였다.
+`pacmannew.ipynb`를 Colab에서 열고 아래 셀을 실행합니다.
 
-관찰
-step 800 부근에서 추격 행동이 안정적으로 나타났다.
-기본적인 협력 구조가 형성되었고, step 1100 이후에는 Pacman을 가두는 전략이 등장하였다.
-하지만 벽 한쪽에 몰리면 Pacman이 계속 잡히는 구조가 발생하였다.
+```python
+env0, pacman_net, ghost_net, stats = train_marl(
+    num_envs=64,          # 병렬 환경 수
+    total_updates=1500,   # 총 PPO 업데이트 횟수
+    horizon=128,          # 롤아웃 길이
+    lr=3e-4,
+    hidden_dim=128,
+    seed=42,
+    max_steps=400,
+    pacman_view_range=4,  # Pacman 시야 거리
+    ghost_view_range=3,   # Ghost 시야 거리
+    map_name="medium",    # "empty" | "medium" | "hard"
+    save_every=50,
+    save_dir="/content/drive/MyDrive/tag_mappo_checkpoints",
+    resume_path=None,     # 이어서 학습할 경우 체크포인트 경로 지정
+)
+```
 
-문제
-Ghost 수가 많아 시야가 과도하게 커버되며 Pacman이 불리한 구조가 형성되었다.
+### 추론 및 시각화
 
-개선
-시야 범위를 조정하여 밸런스를 맞추는 실험으로 이어졌다.
+`pacmannewplay.ipynb`(또는 `pacmannewplay-2.ipynb`)를 열고 실행합니다.
 
-⸻
+```python
+run_inference(
+    checkpoint_path="/content/drive/MyDrive/tag_mappo_checkpoints/checkpoint_update_1000.pt",
+    map_name="medium",
+    seed=451,
+    max_steps=400,
+    pacman_view_range=4,
+    ghost_view_range=3,
+    stochastic=True,   # False 이면 greedy(argmax) 정책 사용
+    render=True,
+    delay=0.1,
+)
+```
 
-3단계: 시야 밸런싱 실험
+---
 
-설정
-Pacman 시야를 10으로 확장하고 Ghost 시야를 2로 축소하였다.
+## 주요 코드 흐름
 
-관찰
-step 400~450 부근에서 Pacman이 과도하게 우세한 결과가 나타났다.
-step 1000 이후에는 단순 술래잡기 형태가 나타났으며, 벽이 있는 환경에서는 step 1500 이후 벽을 이용한 도주 전략이 등장하였다.
+### 환경 (`TagMARLEnv`)
 
-문제
-시야 차이에 따라 성능이 크게 변하며 밸런스가 민감하게 깨지는 문제가 있었다.
+- `reset()` — 맵을 초기화하고 Pacman/Ghost 위치를 랜덤 배치 (최소 거리 `min_start_dist` 보장)
+- `step(pacman_action, ghost_actions)` — 에이전트 이동 → 시야 기반 보상 계산 → 종료 조건 확인
+- `get_obs()` — Actor 로컬 관측 + Critic 전역 상태 반환
 
-개선
-다양한 시야 조합(예: 3 vs 4, 3 vs 10)을 비교하며 행동 변화를 분석하였다.
-또한 학습 시 넓은 시야를 사용하고 inference에서 줄이는 방식의 generalization 실험을 고려하였다.
+### 관측 구조
 
-⸻
+| 에이전트 | Actor 관측 차원 | Critic 관측 차원 |
+|---|---|---|
+| Pacman | 8 rays × 5 = **40** | **190** (전역 상태) |
+| Ghost (각각) | 8 rays × 9 = **72** | **190** (전역 상태) |
 
-4단계: Action 확장 및 환경 상호작용 강화
+Ghost의 ray 특징: `[wall_dist, pacman_dist, pacman_dx, pacman_dy, pacman_mask, ally_dist, ally_dx, ally_dy, ally_mask]`
 
-설정
-Pacman의 action space에 PLACE_WALL을 추가하였다.
-해당 action 선택 시 이동 방향을 재샘플링하고, 이동 전 위치에 임시 벽을 생성하도록 설계하였다.
-임시 벽은 지속 시간과 쿨다운을 가지며 이동과 시야를 차단한다.
-observation에 설치 벽 정보를 반영하도록 확장하였다.
+### 보상
 
-관찰
-Pacman이 단순 도주를 넘어서 환경을 활용하는 전략을 학습하기 시작하였다.
-벽을 이용한 경로 차단 및 도주 전략이 나타났다.
+```
+Ghost i가 Pacman을 시야 내에서 발견한 경우:
+  Ghost i reward = +1.0
+  Pacman reward  = -1.0  (어느 Ghost라도 발견 시)
 
-개선
-에이전트가 환경을 수동적으로 이용하는 수준에서 벗어나 능동적으로 환경을 변화시키는 방향으로 확장되었다.
-전략 공간이 크게 증가하면서 더 복잡한 행동 패턴이 가능해졌다.
+발견하지 못한 경우:
+  모든 에이전트 reward = 0.0
+```
 
-⸻
+### 모델 (`RecurrentActorCritic`)
 
-핵심 인사이트
+```
+Actor:  Linear(obs_dim → 128) → ReLU → Linear → ReLU → LSTM(128) → policy_head(5)
+Critic: Linear(obs_dim → 128) → ReLU → Linear → ReLU → LSTM(128) → value_head(1)
+```
 
-거리 기반 보상은 환경 구조를 반영하지 못해 잘못된 학습을 유도할 수 있다.
-시야 기반 보상은 실제 상호작용 상황만 반영하여 안정적인 학습을 가능하게 한다.
+Pacman과 Ghost 각각 독립적인 네트워크를 가집니다.
 
-MAPPO 구조는 multi-agent 환경에서 협력 및 경쟁 행동을 학습하는 데 효과적이었다.
+### 학습 루프
 
-학습이 진행됨에 따라 단순 추격에서 협력, 포위, 환경 활용 전략으로 행동이 점진적으로 발전하였다.
+```
+collect_rollout_parallel()
+  ├── horizon 스텝 동안 병렬 환경에서 경험 수집
+  └── GAE(γ=0.99, λ=0.95)로 Advantage 계산
 
-⸻
+ppo_update()
+  ├── epochs=4 반복
+  ├── PPO clip loss (ε=0.2)
+  ├── Value function loss (계수 0.5)
+  └── Entropy bonus (계수 0.01)
+```
 
-향후 연구 방향
+---
 
-시야 제한을 통한 generalization 성능 분석
-충돌 및 겹침 제한 추가 실험
-복잡한 맵 구조에서의 전략 학습 분석
-Transformer 기반 policy 적용 가능성 탐색
+## 데이터 구조
+
+### 체크포인트 파일 (`.pt`)
+
+```python
+{
+    "update": int,                          # 저장 시점의 업데이트 번호
+    "pacman_model_state_dict": dict,        # Pacman 네트워크 가중치
+    "ghost_model_state_dict": dict,         # Ghost 네트워크 가중치
+    "pacman_optimizer_state_dict": dict,    # Pacman Adam optimizer 상태
+    "ghost_optimizer_state_dict": dict,     # Ghost Adam optimizer 상태
+    "stats": {
+        "pacman_return": [float, ...],      # 업데이트별 Pacman 누적 보상
+        "ghost_return": [float, ...],       # 업데이트별 Ghost 누적 보상
+    }
+}
+```
+
+### 맵 형식
+
+`#` = 벽, `0` = 빈 공간 (11×11 문자열 리스트)
+
+---
+
+## 테스트 및 검증
+
+별도의 테스트 프레임워크는 구성되어 있지 않습니다. 학습 후 다음 방법으로 결과를 검증할 수 있습니다.
+
+```python
+# 학습 노트북에서 evaluate() 호출
+evaluate(env0, pacman_net, ghost_net, episodes=3, render=True, device=device)
+```
+
+---
+
+## 배포 방법
+
+별도의 서버 배포는 없습니다. Google Colab 노트북 단위로 실행 및 공유합니다.
+
+- 체크포인트는 Google Drive에 저장되어 팀원 간 공유 가능
+- 노트북 파일(`.ipynb`)을 GitHub 또는 Google Drive로 배포
+
+---
+
+## 실험 단계 요약
+
+| 단계 | 맵 | Pacman 속도 | Ghost 속도 | 보상 방식 | 주요 관찰 |
+|---|---|---|---|---|---|
+| 0 | empty | 1 | 1 | Manhattan 거리 | step 340 부근에서 추격 행동 시작 |
+| 1 | medium (벽) | 2 | 1 | Manhattan 거리 | 벽 근처 비정상 행동, 학습 noise 발생 |
+| 2 | medium | 1 | 1 | **시야 기반** | step 800~1100 안정적 협력·포위 전략 |
+| 3 | medium | 1 | 1 | 시야 기반 | 시야 범위 조정(Pacman 4 / Ghost 3)으로 밸런스 개선 |
+
+---
+
+## 현재 한계 및 TODO
+
+- 학습 및 추론이 Google Colab 환경에 의존함 — 로컬 실행 스크립트 분리 필요
+- 시각화가 텍스트 렌더링 수준 — Matplotlib/pygame 기반 GUI 시각화 미구현
+- Ghost 수를 2개로 고정 — 가변 에이전트 수 지원 미구현
+- 학습 곡선(reward 그래프) 자동 저장 미구현
+- `checkpoint_update_450.pt.textClipping` 파일: 체크포인트 오류로 인한 잔여 파일로 추정 (확인 필요)
